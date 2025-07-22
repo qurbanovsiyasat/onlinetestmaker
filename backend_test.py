@@ -374,7 +374,7 @@ class OnlineTestMakerAPITester:
 def main():
     """Main function"""
     # Use the public endpoint from environment
-    base_url = "http://localhost:5000"
+    base_url = "http://localhost:5000"  # Backend is running on port 5000
     
     print("🧪 OnlineTestMaker Backend API Tester")
     print(f"🎯 Target: {base_url}")
