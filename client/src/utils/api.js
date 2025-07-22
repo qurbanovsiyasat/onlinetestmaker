@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Configure axios defaults
-const baseURL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+// Configure axios defaults - use same port to avoid CORS/blocking issues
+const baseURL = window.location.origin; // Use same origin (port 3000)
 
 // Create axios instance with base configuration
 const api = axios.create({
