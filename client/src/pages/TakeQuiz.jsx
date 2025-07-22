@@ -16,7 +16,7 @@ const TakeQuiz = () => {
   useEffect(() => {
     const fetchQuiz = async () => {
       try {
-        const { data } = await axios.get(`/api/quizzes/${id}`);
+        const { data } = await api.get(`/api/quizzes/${id}`);
         setQuiz(data);
         setTimeStarted(new Date());
       } catch (error) {
