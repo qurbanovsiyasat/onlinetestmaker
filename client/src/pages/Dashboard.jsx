@@ -21,7 +21,7 @@ const Dashboard = () => {
     try {
       console.log('Fetching quizzes for user:', user.email);
       
-      const response = await axios.get('/api/quizzes/myquizzes', {
+      const response = await api.get('/api/quizzes/myquizzes', {
         headers: { 'Authorization': `Bearer ${user.token}` }
       });
       
