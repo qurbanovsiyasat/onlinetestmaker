@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../utils/api';
 import { useParams, Link } from 'react-router-dom';
 import QuestionItem from '../components/QuestionItem';
 
