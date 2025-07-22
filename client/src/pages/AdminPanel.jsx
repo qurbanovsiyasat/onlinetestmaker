@@ -46,7 +46,7 @@ const AdminPanel = () => {
   const handleDeleteQuiz = async (quizId) => {
     if (window.confirm('Are you sure you want to delete this quiz?')) {
       try {
-        await axios.delete(`/api/admin/quizzes/${quizId}`);
+        await api.delete(`/api/admin/quizzes/${quizId}`);
         alert('Quiz deleted successfully.');
         fetchData(); // Refresh data
       } catch (error) {
