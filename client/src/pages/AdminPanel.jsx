@@ -33,7 +33,7 @@ const AdminPanel = () => {
   const handleDeleteUser = async (userId) => {
     if (window.confirm('Are you sure you want to delete this user?')) {
       try {
-        await axios.delete(`/api/admin/users/${userId}`);
+        await api.delete(`/api/admin/users/${userId}`);
         alert('User deleted successfully.');
         fetchData(); // Refresh data
       } catch (error) {
