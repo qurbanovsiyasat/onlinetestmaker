@@ -60,6 +60,12 @@ app.get('/direct-login', (req, res) => {
   res.sendFile(path.join(__dirname, '../direct-login.html'));
 });
 
+// Direct login page route
+app.get('/direct-login', (req, res) => {
+  console.log('GET /direct-login - Serving direct login page');
+  res.sendFile(path.join(__dirname, '../direct-login.html'));
+});
+
 // Health check
 app.get('/health', (req, res) => {
   console.log('GET /health - Health check accessed');
