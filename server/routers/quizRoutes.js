@@ -1,12 +1,22 @@
 import express from 'express';
 const router = express.Router();
-import { createQuiz, getMyQuizzes, getQuizById, uploadImage } from '../controllers/quizController.js';
+import { createQuiz, getAllQuizzes, getMyQuizzes, getQuizById, uploadImage } from '../controllers/quizController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { parser } from '../config/cloudinary.js';
 
-router.route('/').post(protect, createQuiz);
-router.route('/myquizzes').get(protect, getMyQuizzes);
-router.route('/upload').post(protect, parser.single('image'), uploadImage);
-router.route('/:id').get(getQuizById);
+// Get all quizzes (public route for home page)
+router.get('/', getAllQuizzes);
+
+// Create new quiz (protected route)
+router.post('/', protect, createQuiz);
+
+// Get user's quizzes (protected route)
+router.get('/myquizzes', protect, getMyQuizzes);
+
+// Upload image (protected route)
+router.post('/upload', protect, parser.single('image'), uploadImage);
+
+// Get specific quiz by ID (public route)
+router.get('/:id', getQuizById);
 
 export default router;
