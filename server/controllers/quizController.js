@@ -1,5 +1,6 @@
 import asyncHandler from 'express-async-handler';
 import Quiz from '../models/Quiz.js';
+import { isCloudinaryConfigured } from '../config/cloudinary.js';
 
 const createQuiz = asyncHandler(async (req, res) => {
   console.log('Creating quiz:', req.body);
@@ -79,6 +80,12 @@ const getQuizById = asyncHandler(async (req, res) => {
 
 const uploadImage = asyncHandler(async (req, res) => {
   console.log('Image upload request received');
+  
+  if (!isCloudinaryConfigured) {
+    res.status(500);
+    throw new Error("Image upload service not configured. Please contact administrator.");
+  }
+  
   if(req.file) {
     console.log('Image uploaded successfully:', req.file.path);
     res.status(201).json({
