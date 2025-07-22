@@ -54,7 +54,7 @@ const CreateQuiz = () => {
       const formData = new FormData();
       formData.append('image', file);
 
-      const response = await axios.post('/api/quizzes/upload', formData, {
+      const response = await api.post('/api/quizzes/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           'Authorization': `Bearer ${user.token}`
