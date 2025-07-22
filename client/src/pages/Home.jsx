@@ -11,7 +11,7 @@ const Home = () => {
   useEffect(() => {
     const fetchPublicQuizzes = async () => {
       try {
-        const { data } = await axios.get('/api/quizzes');
+        const { data } = await api.get('/api/quizzes');
         setQuizzes(data);
       } catch (error) {
         console.error('Could not fetch quizzes', error);
