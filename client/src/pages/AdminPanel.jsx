@@ -13,8 +13,8 @@ const AdminPanel = () => {
     setLoading(true);
     try {
       const [usersRes, quizzesRes] = await Promise.all([
-        axios.get('/api/admin/users'),
-        axios.get('/api/admin/quizzes'),
+        api.get('/api/admin/users'),
+        api.get('/api/admin/quizzes'),
       ]);
       setUsers(usersRes.data);
       setQuizzes(quizzesRes.data);
