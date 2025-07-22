@@ -145,7 +145,7 @@ const CreateQuiz = () => {
 
       console.log('Creating quiz:', quizData);
 
-      const response = await axios.post('/api/quizzes', quizData, {
+      const response = await api.post('/api/quizzes', quizData, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${user.token}`
