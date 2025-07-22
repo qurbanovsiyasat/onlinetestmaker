@@ -26,9 +26,12 @@ const app = express();
 
 // Enable CORS
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3001'],
+  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5000'],
   credentials: true
 }));
+
+// Serve static files
+app.use(express.static(path.join(__dirname, '..')));
 
 // Parse JSON bodies
 app.use(express.json());
