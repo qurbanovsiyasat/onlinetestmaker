@@ -39,7 +39,7 @@ const Dashboard = () => {
   const handleDeleteQuiz = async (quizId) => {
     if (window.confirm('Are you sure you want to delete this quiz?')) {
       try {
-        await axios.delete(`/api/quizzes/${quizId}`, {
+        await api.delete(`/api/quizzes/${quizId}`, {
           headers: { 'Authorization': `Bearer ${user.token}` }
         });
         setMyQuizzes(myQuizzes.filter(quiz => quiz._id !== quizId));
