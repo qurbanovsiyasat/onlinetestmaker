@@ -4,14 +4,24 @@ import { useUserStats, useRecentActivity } from '@/hooks/useUserStats'
 import { useUserPrivacySettings, useUpdatePrivacySetting } from '@/hooks/useSettings'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/Label'
 import { Textarea } from '@/components/ui/Textarea'
 import { Badge } from '@/components/ui/Badge'
-import { User, Mail, Calendar, Edit, Save, X, BookOpen, MessageSquare, Trophy, TrendingUp, Clock, Star } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from '@/components/ui/dialog'
+import { User, Mail, Calendar, Edit, Save, X, BookOpen, MessageSquare, Trophy, TrendingUp, Clock, Star, Key, Shield } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import { formatDate } from '@/lib/utils'
+import { supabase } from '@/lib/supabase'
 
 export default function ProfilePage() {
   const { user, updateProfile } = useAuth()
@@ -23,8 +33,11 @@ export default function ProfilePage() {
   const [editData, setEditData] = useState({
     full_name: user?.full_name || '',
     email: user?.email || '',
-    bio: ''
+    bio: '',
+    newEmail: '',
+    currentPassword: ''
   })
+  const [showEmailChange, setShowEmailChange] = useState(false)
 
   // Update bio from privacy settings when loaded
   useEffect(() => {
@@ -49,6 +62,42 @@ export default function ProfilePage() {
         </Card>
       </div>
     )
+  }
+
+  const handleEmailChange = async () => {
+    if (!editData.newEmail || !editData.currentPassword) {
+      toast.error('Yeni email və cari şifrə tələb olunur')
+      return
+    }
+
+    try {
+      // First verify current password by attempting to sign in
+      const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email: user?.email || '',
+        password: editData.currentPassword
+      })
+
+      if (verifyError) {
+        toast.error('Cari şifrə yanlışdır')
+        return
+      }
+
+      // Update email
+      const { error: updateError } = await supabase.auth.updateUser({
+        email: editData.newEmail
+      })
+
+      if (updateError) {
+        toast.error('Email yenilənərkən xəta: ' + updateError.message)
+      } else {
+        toast.success('Email yeniləmə linki yeni ünvana göndərildi. Təsdiqləmə üçün emailinizi yoxlayın.')
+        setShowEmailChange(false)
+        setEditData(prev => ({ ...prev, newEmail: '', currentPassword: '' }))
+      }
+    } catch (error) {
+      toast.error('Email yenilənərkən xəta baş verdi')
+      console.error('Email update error:', error)
+    }
   }
 
   const handleSave = async () => {
@@ -184,9 +233,20 @@ export default function ProfilePage() {
 
                 <div>
                   <Label htmlFor="email">E-poçt</Label>
-                  <div className="flex items-center mt-1">
-                    <Mail className="h-4 w-4 mr-2 text-slate-400 flex-shrink-0" />
-                    <span className="text-slate-900 dark:text-white break-all">{user.email || 'Email not set'}</span>
+                  <div className="flex items-center justify-between mt-1">
+                    <div className="flex items-center">
+                      <Mail className="h-4 w-4 mr-2 text-slate-400 flex-shrink-0" />
+                      <span className="text-slate-900 dark:text-white break-all">{user.email || 'Email not set'}</span>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => setShowEmailChange(true)}
+                      className="text-vibrant-blue hover:text-vibrant-blue/80"
+                    >
+                      <Key className="h-4 w-4 mr-1" />
+                      Dəyiş
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -418,6 +478,52 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* Email Change Dialog */}
+      <Dialog open={showEmailChange} onOpenChange={setShowEmailChange}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <Mail className="h-5 w-5" />
+              <span>Email Ünvanını Dəyiş</span>
+            </DialogTitle>
+            <DialogDescription>
+              Email ünvanınızı dəyişmək üçün yeni email və cari şifrənizi daxil edin.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="newEmail">Yeni Email</Label>
+              <Input
+                id="newEmail"
+                type="email"
+                placeholder="yeni@email.com"
+                value={editData.newEmail}
+                onChange={(e) => setEditData(prev => ({ ...prev, newEmail: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="currentPassword">Cari Şifrə</Label>
+              <Input
+                id="currentPassword"
+                type="password"
+                placeholder="Cari şifrənizi daxil edin"
+                value={editData.currentPassword}
+                onChange={(e) => setEditData(prev => ({ ...prev, currentPassword: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEmailChange(false)}>
+              Ləğv et
+            </Button>
+            <Button onClick={handleEmailChange} disabled={!editData.newEmail || !editData.currentPassword}>
+              <Shield className="h-4 w-4 mr-2" />
+              Email-i Dəyiş
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

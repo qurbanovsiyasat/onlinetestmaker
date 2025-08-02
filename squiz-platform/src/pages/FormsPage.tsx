@@ -2,10 +2,10 @@ import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { useLanguage } from '@/contexts/LanguageContext'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
@@ -22,6 +22,78 @@ import {
   Loader2
 } from 'lucide-react'
 
+// Like Button Component
+function LikeButton({ contentType, contentId, likes }: { contentType: string; contentId: string; likes: number }) {
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+  
+  const { data: isLiked = false } = useQuery({
+    queryKey: [`${contentType}-like-status`, contentId, user?.id],
+    queryFn: async () => {
+      if (!user) return false
+      const { data, error } = await supabase
+        .from(`${contentType}_likes`)
+        .select('id')
+        .eq(`${contentType}_id`, contentId)
+        .eq('user_id', user.id)
+        .maybeSingle()
+      
+      if (error) {
+        console.error('Error checking like status:', error)
+        return false
+      }
+      return !!data
+    },
+    enabled: !!user
+  })
+
+  const toggleLikeMutation = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error('User not authenticated')
+      
+      const { data, error } = await supabase.rpc('toggle_like', {
+        content_type: contentType,
+        content_id: contentId,
+        user_id: user.id
+      })
+      
+      if (error) throw error
+      return data
+    },
+    onSuccess: (data) => {
+      // Invalidate relevant queries to update UI
+      queryClient.invalidateQueries({ queryKey: [`${contentType}s`] })
+      queryClient.invalidateQueries({ queryKey: [`${contentType}-like-status`, contentId] })
+    },
+    onError: (error: any) => {
+      console.error('Like toggle error:', error)
+    }
+  })
+
+  const handleLike = () => {
+    if (!user) {
+      // Could show login modal or redirect to login
+      return
+    }
+    toggleLikeMutation.mutate()
+  }
+
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      onClick={handleLike}
+      disabled={toggleLikeMutation.isPending}
+      className={`btn-secondary flex items-center space-x-1 ${
+        isLiked ? 'text-red-600 bg-red-50 dark:bg-red-900/20' : ''
+      }`}
+    >
+      <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
+      <span>{likes}</span>
+    </Button>
+  )
+}
+
 export default function FormsPage() {
   const { user } = useAuth()
   const { t } = useLanguage()
@@ -33,18 +105,10 @@ export default function FormsPage() {
   const { data: forms = [], isLoading, error } = useQuery({
     queryKey: ['forms', categoryFilter, sortBy],
     queryFn: async () => {
+      // First, get forms data
       let query = supabase
         .from('forms')
-        .select(`
-          id,
-          title,
-          description,
-          category,
-          created_at,
-          users!forms_creator_id_fkey(full_name, email, is_private),
-          form_likes(count),
-          form_submissions(count)
-        `)
+        .select('id, title, description, category, created_at, creator_id, view_count, submission_count, likes_count')
       
       if (categoryFilter !== 'all') {
         query = query.eq('category', categoryFilter)
@@ -55,56 +119,51 @@ export default function FormsPage() {
           query = query.order('view_count', { ascending: false })
           break
         case 'liked':
-          query = query.order('created_at', { ascending: false }) // Will implement proper like count sorting
+          query = query.order('likes_count', { ascending: false })
           break
         default:
           query = query.order('created_at', { ascending: false })
       }
       
-      const { data, error } = await query
+      const { data: formsData, error } = await query
       
       if (error) {
-        // If table doesn't exist, return mock data for now
-        console.warn('Forms table not found, using fallback data')
-        return [
-          {
-            id: '1',
-            title: 'Tələbə Rəy Sorğusu',
-            description: 'Universitet xidmətləri haqqında rəyinizi bildirin',
-            category: 'Təhsil',
-            likes: 24,
-            views: 156,
-            submissions: 89,
-            createdAt: '2025-01-28T10:00:00Z',
-            author: 'Müəllim Əhməd'
-          },
-          {
-            id: '2',
-            title: 'İT Sahəsində Karyera Sorğusu',
-            description: 'Texnologiya sahəsində karyera planlarınız haqqında',
-            category: 'Karyera',
-            likes: 18,
-            views: 203,
-            submissions: 67,
-            createdAt: '2025-01-27T15:30:00Z',
-            author: 'HR Mütəxəssisi'
-          }
-        ]
+        console.error('Error fetching forms:', error)
+        throw error
       }
       
-      return data?.map(form => ({
-        id: form.id,
-        title: form.title,
-        description: form.description,
-        category: form.category,
-        likes: Math.floor(Math.random() * 50), // Placeholder until likes system is implemented
-        views: Math.floor(Math.random() * 200) + 50,
-        submissions: Math.floor(Math.random() * 100),
-        createdAt: form.created_at,
-        author: form.users?.is_private 
-          ? 'Abituriyent' 
-          : (form.users?.full_name || form.users?.email?.split('@')[0] || 'İstifadəçi')
-      })) || []
+      if (!formsData || formsData.length === 0) {
+        return []
+      }
+      
+      // Manually fetch creator names (following Supabase best practices)
+      const creatorIds = [...new Set(formsData.map(form => form.creator_id))]
+      const { data: creators } = await supabase
+        .from('users')
+        .select('id, full_name, email, is_private')
+        .in('id', creatorIds)
+      
+      // Map forms with creator data
+      return formsData.map(form => {
+        const creator = creators?.find(c => c.id === form.creator_id)
+        const getDisplayName = () => {
+          if (!creator) return 'İstifadəçi'
+          if (creator.is_private) return 'Abituriyent'
+          return creator.full_name || creator.email?.split('@')[0] || 'İstifadəçi'
+        }
+        
+        return {
+          id: form.id,
+          title: form.title,
+          description: form.description,
+          category: form.category || 'Ümumi',
+          likes: form.likes_count || 0,
+          views: form.view_count || 0,
+          submissions: form.submission_count || 0,
+          createdAt: form.created_at,
+          author: getDisplayName()
+        }
+      })
     }
   })
 
@@ -114,10 +173,12 @@ export default function FormsPage() {
       const { data, error } = await supabase
         .from('form_categories')
         .select('name')
+        .eq('is_active', true)
         .order('name')
       
       if (error) {
-        // If table doesn't exist, return default categories
+        console.error('Error fetching form categories:', error)
+        // Return default categories if error
         return ['Təhsil', 'Karyera', 'Sağlamlıq', 'Texnologiya', 'Ümumi']
       }
       return data?.map(cat => cat.name) || ['Təhsil', 'Karyera', 'Sağlamlıq', 'Texnologiya', 'Ümumi']
@@ -292,9 +353,11 @@ export default function FormsPage() {
                               Bax
                             </Link>
                           </Button>
-                          <Button size="sm" variant="outline" className="btn-secondary">
-                            <Heart className="h-4 w-4" />
-                          </Button>
+                          <LikeButton 
+                            contentType="form"
+                            contentId={form.id}
+                            likes={form.likes}
+                          />
                         </div>
                       </div>
                     </CardContent>

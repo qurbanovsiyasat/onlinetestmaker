@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
+import { useQuizCreatePermission } from '@/hooks/useQuizCreatePermission'
 import { useQuizzes } from '@/hooks/useQuiz'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/Select'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { QuizCardSkeleton } from '@/components/ui/Skeleton'
 import { QueryErrorFallback } from '@/components/ui/ErrorBoundary'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -16,6 +17,7 @@ import { formatDate, getDifficultyColor } from '@/lib/utils'
 
 export default function QuizzesPage() {
   const { user } = useAuth()
+  const { checkPermissionAndNavigate } = useQuizCreatePermission()
   const [searchTerm, setSearchTerm] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [difficultyFilter, setDifficultyFilter] = useState('')
@@ -70,12 +72,10 @@ export default function QuizzesPage() {
             </p>
           </div>
           {(user?.role === 'teacher' || user?.role === 'admin' || user?.can_create_quiz) && (
-            <Link to="/quizzes/create">
-              <Button size="lg" className="space-x-2 w-full sm:w-auto">
-                <Plus className="h-4 w-4" />
-                <span>Yeni Quiz</span>
-              </Button>
-            </Link>
+            <Button onClick={checkPermissionAndNavigate} size="lg" className="space-x-2 w-full sm:w-auto">
+              <Plus className="h-4 w-4" />
+              <span>Yeni Quiz</span>
+            </Button>
           )}
         </div>
       </motion.div>
@@ -261,7 +261,7 @@ export default function QuizzesPage() {
             description="Axtarış şərtlərinizə uyğun quiz mövcud deyil. Filtrləri dəyişdirməyi və ya yeni quiz yaratmagı sınayın."
             action={(user?.role === 'teacher' || user?.role === 'admin' || user?.can_create_quiz) ? {
               label: 'Yeni Quiz Yarat',
-              onClick: () => window.location.href = '/quizzes/create',
+              onClick: checkPermissionAndNavigate,
               icon: Plus
             } : undefined}
           />

@@ -1,7 +1,8 @@
 import React from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useLanguage } from '@/contexts/LanguageContext'
-import { Button } from '@/components/ui/button'
+import { useTheme } from 'next-themes'
+import { Button } from '@/components/ui/Button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Badge } from '@/components/ui/badge'
+import { Badge } from '@/components/ui/Badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
 import { motion } from 'framer-motion'
@@ -35,7 +36,7 @@ interface NavbarProps {
 export default function Navbar({ onMenuClick }: NavbarProps) {
   const { user, signOut } = useAuth()
   const { currentLanguage, changeLanguage } = useLanguage()
-  const [theme, setTheme] = React.useState<'light' | 'dark'>('light')
+  const { theme, setTheme } = useTheme()
 
   const handleSignOut = async () => {
     try {
@@ -46,10 +47,7 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
   }
 
   const toggleTheme = () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light'
-    setTheme(newTheme)
-    // Apply theme to document
-    document.documentElement.classList.toggle('dark', newTheme === 'dark')
+    setTheme(theme === 'light' ? 'dark' : 'light')
   }
 
   const toggleLanguage = () => {

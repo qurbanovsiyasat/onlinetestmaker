@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryProvider } from '@/contexts/QueryProvider'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { LanguageProvider } from '@/contexts/LanguageContext'
+import { ThemeProvider } from '@/contexts/ThemeProvider'
 import { Toaster } from 'react-hot-toast'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import AIChat from '@/components/AIChat'
@@ -278,37 +279,39 @@ function AppRoutes() {
 function App() {
   return (
     <ErrorBoundary>
-      <QueryProvider>
-        <AuthProvider>
-          <LanguageProvider>
-            <AppRoutes />
-            <Toaster 
-              position="top-right"
-              toastOptions={{
-                duration: 4000,
-                style: {
-                  background: '#363636',
-                  color: '#fff',
-                },
-                success: {
-                  duration: 3000,
-                  iconTheme: {
-                    primary: '#10B981',
-                    secondary: '#fff',
-                  },
-                },
-                error: {
+      <ThemeProvider defaultTheme="light" storageKey="squiz-theme">
+        <QueryProvider>
+          <AuthProvider>
+            <LanguageProvider>
+              <AppRoutes />
+              <Toaster 
+                position="top-right"
+                toastOptions={{
                   duration: 4000,
-                  iconTheme: {
-                    primary: '#EF4444',
-                    secondary: '#fff',
+                  style: {
+                    background: '#363636',
+                    color: '#fff',
                   },
-                },
-              }}
-            />
-          </LanguageProvider>
-        </AuthProvider>
-      </QueryProvider>
+                  success: {
+                    duration: 3000,
+                    iconTheme: {
+                      primary: '#10B981',
+                      secondary: '#fff',
+                    },
+                  },
+                  error: {
+                    duration: 4000,
+                    iconTheme: {
+                      primary: '#EF4444',
+                      secondary: '#fff',
+                    },
+                  },
+                }}
+              />
+            </LanguageProvider>
+          </AuthProvider>
+        </QueryProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   )
 }

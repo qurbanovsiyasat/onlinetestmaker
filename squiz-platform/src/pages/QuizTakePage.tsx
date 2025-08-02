@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuiz, useCompleteQuizAttempt } from '@/hooks/useQuiz'
 import { useAuth } from '@/contexts/AuthContext'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
@@ -192,14 +192,14 @@ export default function QuizTakePage() {
           <RadioGroup 
             value={currentAnswer || ''} 
             onValueChange={handleAnswerChange}
-            className="space-y-3"
+            className="grid grid-cols-1 md:grid-cols-2 gap-3"
           >
             {currentQuestion.options?.map((option, index) => (
-              <div key={index} className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                <RadioGroupItem value={option} id={`option-${index}`} />
+              <div key={index} className="flex items-center space-x-3 p-4 rounded-xl border-2 hover:border-primary-300 dark:hover:border-primary-600 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all duration-200 cursor-pointer group">
+                <RadioGroupItem value={option} id={`option-${index}`} className="shrink-0" />
                 <Label 
                   htmlFor={`option-${index}`} 
-                  className="flex-1 cursor-pointer text-base"
+                  className="flex-1 cursor-pointer text-base leading-relaxed group-hover:text-primary-700 dark:group-hover:text-primary-300 transition-colors"
                 >
                   <MathRenderer>{option}</MathRenderer>
                 </Label>
@@ -213,15 +213,15 @@ export default function QuizTakePage() {
           <RadioGroup 
             value={currentAnswer || ''} 
             onValueChange={handleAnswerChange}
-            className="space-y-3"
+            className="grid grid-cols-1 md:grid-cols-2 gap-4"
           >
-            <div className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-              <RadioGroupItem value="True" id="true" />
-              <Label htmlFor="true" className="flex-1 cursor-pointer text-base">True</Label>
+            <div className="flex items-center space-x-3 p-4 rounded-xl border-2 hover:border-primary-300 dark:hover:border-primary-600 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all duration-200 cursor-pointer group">
+              <RadioGroupItem value="True" id="true" className="shrink-0" />
+              <Label htmlFor="true" className="flex-1 cursor-pointer text-base font-medium group-hover:text-primary-700 dark:group-hover:text-primary-300 transition-colors">✓ Doğru</Label>
             </div>
-            <div className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-              <RadioGroupItem value="False" id="false" />
-              <Label htmlFor="false" className="flex-1 cursor-pointer text-base">False</Label>
+            <div className="flex items-center space-x-3 p-4 rounded-xl border-2 hover:border-primary-300 dark:hover:border-primary-600 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all duration-200 cursor-pointer group">
+              <RadioGroupItem value="False" id="false" className="shrink-0" />
+              <Label htmlFor="false" className="flex-1 cursor-pointer text-base font-medium group-hover:text-primary-700 dark:group-hover:text-primary-300 transition-colors">✗ Yanlış</Label>
             </div>
           </RadioGroup>
         )

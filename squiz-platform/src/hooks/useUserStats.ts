@@ -35,47 +35,66 @@ export function useUserStats() {
     queryFn: async (): Promise<UserStats> => {
       if (!user) throw new Error('User not authenticated')
       
-      // Get quizzes created
-      const { data: quizzesCreated, error: quizzesError } = await supabase
-        .from('quizzes')
-        .select('id')
-        .eq('creator_id', user.id)
-      
-      if (quizzesError) throw quizzesError
-      
-      // Get quizzes completed
-      const { data: quizzesCompleted, error: completedError } = await supabase
-        .from('quiz_results')
-        .select('id')
-        .eq('user_id', user.id)
-      
-      if (completedError) throw completedError
-      
-      // Get forum posts
-      const { data: forumPosts, error: forumError } = await supabase
-        .from('forum_posts')
-        .select('id')
-        .eq('author_id', user.id)
-      
-      if (forumError) throw forumError
-      
-      // Get average score
-      const { data: avgScore, error: scoreError } = await supabase
-        .from('quiz_results')
-        .select('score')
-        .eq('user_id', user.id)
-      
-      if (scoreError) throw scoreError
-      
-      const averageScore = avgScore.length > 0 
-        ? Math.round(avgScore.reduce((sum, result) => sum + result.score, 0) / avgScore.length)
-        : 0
-      
-      return {
-        quizzesCreated: quizzesCreated.length,
-        quizzesCompleted: quizzesCompleted.length,
-        forumPosts: forumPosts.length,
-        averageScore
+      try {
+        // Get quizzes created
+        const { data: quizzesCreated, error: quizzesError } = await supabase
+          .from('quizzes')
+          .select('id')
+          .eq('creator_id', user.id)
+        
+        if (quizzesError) {
+          console.error('Error fetching created quizzes:', quizzesError)
+        }
+        
+        // Get quizzes completed
+        const { data: quizzesCompleted, error: completedError } = await supabase
+          .from('quiz_results')
+          .select('id')
+          .eq('user_id', user.id)
+        
+        if (completedError) {
+          console.error('Error fetching completed quizzes:', completedError)
+        }
+        
+        // Get forum posts
+        const { data: forumPosts, error: forumError } = await supabase
+          .from('forum_posts')
+          .select('id')
+          .eq('author_id', user.id)
+        
+        if (forumError) {
+          console.error('Error fetching forum posts:', forumError)
+        }
+        
+        // Get average score
+        const { data: avgScore, error: scoreError } = await supabase
+          .from('quiz_results')
+          .select('score')
+          .eq('user_id', user.id)
+        
+        if (scoreError) {
+          console.error('Error fetching quiz scores:', scoreError)
+        }
+        
+        const averageScore = avgScore && avgScore.length > 0 
+          ? Math.round(avgScore.reduce((sum, result) => sum + result.score, 0) / avgScore.length)
+          : 0
+        
+        return {
+          quizzesCreated: quizzesCreated?.length || 0,
+          quizzesCompleted: quizzesCompleted?.length || 0,
+          forumPosts: forumPosts?.length || 0,
+          averageScore
+        }
+      } catch (error) {
+        console.error('Error fetching user stats:', error)
+        // Return default stats if there's an error
+        return {
+          quizzesCreated: 0,
+          quizzesCompleted: 0,
+          forumPosts: 0,
+          averageScore: 0
+        }
       }
     },
     enabled: !!user,

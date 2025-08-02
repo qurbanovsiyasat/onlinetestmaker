@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Input } from '@/components/ui/Input'
+import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/Button'
 import { Label } from '@/components/ui/Label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'

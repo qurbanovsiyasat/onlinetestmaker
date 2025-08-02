@@ -2,11 +2,12 @@ import React from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useUserStatistics } from '@/hooks/useStatistics'
+import { useQuizCreatePermission } from '@/hooks/useQuizCreatePermission'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { Link } from 'react-router-dom'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/Button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { StatCard, StatCardSkeleton } from '@/components/ui/StatCard'
 import { Badge } from '@/components/ui/badge'
 import { motion } from 'framer-motion'
@@ -49,36 +50,48 @@ interface ActivityItem {
 export default function DashboardPage() {
   const { user } = useAuth()
   const { t } = useLanguage()
+  const { checkPermissionAndNavigate } = useQuizCreatePermission()
   const { data: stats, isLoading: statsLoading, error: statsError } = useUserStatistics()
 
-  // TODO: Replace with real data hooks - these will be implemented in next iteration
+  // Fixed query following Supabase best practices
   const { data: recentQuizzes, isLoading: quizzesLoading } = useQuery({
     queryKey: ['recent-quizzes'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: quizzes, error } = await supabase
         .from('quizzes')
-        .select(`
-          id,
-          title,
-          difficulty,
-          created_at,
-          questions:questions(count),
-          quiz_results(count)
-        `)
+        .select('id, title, difficulty, created_at')
         .eq('is_public', true)
         .order('created_at', { ascending: false })
         .limit(3)
       
       if (error) throw error
+      if (!quizzes) return []
       
-      return data?.map(quiz => ({
-        id: quiz.id,
-        title: quiz.title,
-        difficulty: quiz.difficulty || 'medium',
-        questions: quiz.questions?.length || 0,
-        participants: quiz.quiz_results?.length || 0,
-        createdAt: quiz.created_at
-      })) || []
+      // Manually fetch question and result counts
+      const quizzesWithCounts = await Promise.all(
+        quizzes.map(async (quiz) => {
+          const { data: questions } = await supabase
+            .from('questions')
+            .select('id')
+            .eq('quiz_id', quiz.id)
+          
+          const { data: results } = await supabase
+            .from('quiz_results')
+            .select('id')
+            .eq('quiz_id', quiz.id)
+
+          return {
+            id: quiz.id,
+            title: quiz.title,
+            difficulty: quiz.difficulty || 'medium',
+            questions: questions?.length || 0,
+            participants: results?.length || 0,
+            createdAt: quiz.created_at
+          }
+        })
+      )
+      
+      return quizzesWithCounts
     }
   })
 
@@ -87,16 +100,10 @@ export default function DashboardPage() {
     queryFn: async () => {
       if (!user?.id) return []
       
-      // Get recent quiz completions
+      // Get recent quiz completions - fixed to avoid joins
       const { data: completions, error: completionsError } = await supabase
         .from('quiz_results')
-        .select(`
-          id,
-          score,
-          total_questions,
-          completed_at,
-          quizzes(title)
-        `)
+        .select('id, score, total_questions, completed_at, quiz_id')
         .eq('user_id', user.id)
         .order('completed_at', { ascending: false })
         .limit(2)
@@ -115,16 +122,26 @@ export default function DashboardPage() {
       
       const activities: ActivityItem[] = []
       
-      // Add quiz completions
-      completions?.forEach(completion => {
-        activities.push({
-          id: `completion-${completion.id}`,
-          type: 'quiz_completed',
-          title: `${(completion.quizzes as any)?.title || 'Quiz'} testini tamamladınız`,
-          score: `${completion.score}/${completion.total_questions}`,
-          time: completion.completed_at
+      // Manually fetch quiz titles for completions
+      if (completions && completions.length > 0) {
+        const quizIds = completions.map(c => c.quiz_id)
+        const { data: quizTitles } = await supabase
+          .from('quizzes')
+          .select('id, title')
+          .in('id', quizIds)
+        
+        // Add quiz completions with fetched titles
+        completions.forEach(completion => {
+          const quiz = quizTitles?.find(q => q.id === completion.quiz_id)
+          activities.push({
+            id: `completion-${completion.id}`,
+            type: 'quiz_completed',
+            title: `${quiz?.title || 'Quiz'} testini tamamladınız`,
+            score: `${completion.score}/${completion.total_questions}`,
+            time: completion.completed_at
+          })
         })
-      })
+      }
       
       // Add questions
       questions?.forEach(question => {
@@ -177,6 +194,8 @@ export default function DashboardPage() {
     }
   }
 
+
+
   const displayName = user?.is_private ? 'Abituriyent' : (user?.full_name || user?.email?.split('@')[0] || 'İstifadəçi')
 
   return (
@@ -202,11 +221,9 @@ export default function DashboardPage() {
           
           {/* Quick Actions */}
           <div className="flex flex-wrap gap-3">
-            <Button asChild className="btn-primary space-x-2">
-              <Link to="/quizzes/create">
-                <PlusCircle className="h-4 w-4" />
-                <span>{t('dashboard.createQuiz')}</span>
-              </Link>
+            <Button onClick={checkPermissionAndNavigate} className="btn-primary space-x-2">
+              <PlusCircle className="h-4 w-4" />
+              <span>{t('dashboard.createQuiz')}</span>
             </Button>
             <Button variant="outline" asChild className="btn-secondary space-x-2">
               <Link to="/quizzes">
@@ -360,11 +377,9 @@ export default function DashboardPage() {
                 ) : (
                   <div className="text-center py-8">
                     <p className="text-body text-medium-grey">Hələ heç bir quiz yoxdur</p>
-                    <Button asChild className="btn-primary mt-4">
-                      <Link to="/quizzes/create">
-                        <PlusCircle className="h-4 w-4 mr-2" />
-                        İlk Quizinizi Yaradın
-                      </Link>
+                    <Button onClick={checkPermissionAndNavigate} className="btn-primary mt-4">
+                      <PlusCircle className="h-4 w-4 mr-2" />
+                      İlk Quizinizi Yaradın
                     </Button>
                   </div>
                 )}

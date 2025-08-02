@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
-import { Input } from '@/components/ui/Input'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/Label'
 import { 
   Play, 
@@ -30,6 +30,203 @@ import { formatDate, getDifficultyColor } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import LoadingPage from './LoadingPage'
+import { useQuery } from '@tanstack/react-query'
+
+// Top 3 Leaderboard Component
+function TopThreeLeaderboard({ quizId }: { quizId: string }) {
+  const { data: leaderboard = [], isLoading } = useQuery({
+    queryKey: ['quiz-leaderboard', quizId],
+    queryFn: async () => {
+      const { data: results, error } = await supabase
+        .from('quiz_results')
+        .select(`
+          id,
+          score,
+          user_id,
+          created_at
+        `)
+        .eq('quiz_id', quizId)
+        .order('score', { ascending: false })
+        .limit(3)
+      
+      if (error) {
+        console.error('Error fetching leaderboard:', error)
+        return []
+      }
+      
+      if (!results || results.length === 0) {
+        return []
+      }
+      
+      // Manually fetch user data
+      const userIds = [...new Set(results.map(result => result.user_id))]
+      const { data: users } = await supabase
+        .from('users')
+        .select('id, full_name, email, is_private, avatar_url')
+        .in('id', userIds)
+      
+      return results.map((result, index) => {
+        const user = users?.find(u => u.id === result.user_id)
+        const getDisplayName = () => {
+          if (!user) return 'İstifadəçi'
+          if (user.is_private) return 'Abituriyent'
+          return user.full_name || user.email?.split('@')[0] || 'İstifadəçi'
+        }
+        
+        return {
+          rank: index + 1,
+          score: result.score,
+          userName: getDisplayName(),
+          avatarUrl: user?.avatar_url,
+          completedAt: result.created_at
+        }
+      })
+    }
+  })
+
+  if (isLoading) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.2 }}
+      >
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Trophy className="h-5 w-5 text-yellow-600" />
+              <span>Top 3 Nəticələr</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+              <p className="text-slate-600 dark:text-slate-400">Nəticələr yüklənir...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    )
+  }
+
+  if (leaderboard.length === 0) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.2 }}
+      >
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Trophy className="h-5 w-5 text-yellow-600" />
+              <span>Top 3 Nəticələr</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center py-8">
+              <Trophy className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+              <p className="text-slate-600 dark:text-slate-400">Hələ heç kim bu quiz-də iştirak etməyib</p>
+              <p className="text-sm text-slate-500 mt-1">İlk nəticəni sən qoy!</p>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    )
+  }
+
+  const getRankStyle = (rank: number) => {
+    switch (rank) {
+      case 1:
+        return 'bg-gradient-to-r from-yellow-100 to-yellow-200 dark:from-yellow-900/30 dark:to-yellow-800/30 border-yellow-300 dark:border-yellow-700'
+      case 2:
+        return 'bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800/30 dark:to-gray-700/30 border-gray-300 dark:border-gray-600'
+      case 3:
+        return 'bg-gradient-to-r from-orange-100 to-orange-200 dark:from-orange-900/30 dark:to-orange-800/30 border-orange-300 dark:border-orange-700'
+      default:
+        return 'bg-white dark:bg-slate-800'
+    }
+  }
+
+  const getRankIcon = (rank: number) => {
+    switch (rank) {
+      case 1:
+        return '🥇'
+      case 2:
+        return '🥈'
+      case 3:
+        return '🥉'
+      default:
+        return `#${rank}`
+    }
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay: 0.2 }}
+    >
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Trophy className="h-5 w-5 text-yellow-600" />
+            <span>Top 3 Nəticələr</span>
+          </CardTitle>
+          <CardDescription>
+            Ən yüksək nəticə alan iştirakçılar
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {leaderboard.map((entry) => (
+              <div
+                key={entry.rank}
+                className={`flex items-center space-x-4 p-4 rounded-lg border ${getRankStyle(entry.rank)}`}
+              >
+                <div className="text-2xl font-bold min-w-[3rem] text-center">
+                  {getRankIcon(entry.rank)}
+                </div>
+                
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
+                  {entry.avatarUrl ? (
+                    <img 
+                      src={entry.avatarUrl} 
+                      alt={entry.userName} 
+                      className="w-12 h-12 rounded-full object-cover" 
+                    />
+                  ) : (
+                    <span className="text-white font-medium text-sm">
+                      {entry.userName.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                
+                <div className="flex-1">
+                  <h4 className="font-semibold text-slate-900 dark:text-white">
+                    {entry.userName}
+                  </h4>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                    {formatDate(entry.completedAt)}
+                  </p>
+                </div>
+                
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-slate-900 dark:text-white">
+                    {entry.score}%
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    Nəticə
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  )
+}
 
 export default function QuizDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -354,51 +551,9 @@ export default function QuizDetailPage() {
         </div>
       </motion.div>
 
-      {/* Questions Preview */}
+      {/* Top 3 Leaderboard */}
       {hasQuestions && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-        >
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <BookOpen className="h-5 w-5" />
-                <span>Sual Önizləməsi</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {quiz.questions.slice(0, 3).map((question, index) => (
-                  <div key={question.id} className="border border-slate-200 dark:border-slate-700 rounded-lg p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-slate-900 dark:text-white">
-                          Sual {index + 1}
-                        </h4>
-                        <p className="text-slate-600 dark:text-slate-400 mt-1 line-clamp-2">
-                          {question.question_text}
-                        </p>
-                      </div>
-                      <Badge variant="outline" className="ml-4">
-                        {question.points || 1} xal
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-                
-                {quiz.questions.length > 3 && (
-                  <div className="text-center">
-                    <p className="text-slate-600 dark:text-slate-400">
-                      Və daha {quiz.questions.length - 3} sual...
-                    </p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+        <TopThreeLeaderboard quizId={id!} />
       )}
 
       {/* Quiz Info */}

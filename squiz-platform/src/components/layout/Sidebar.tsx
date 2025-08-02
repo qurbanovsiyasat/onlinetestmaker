@@ -1,9 +1,10 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { useQuizCreatePermission } from '@/hooks/useQuizCreatePermission'
+import { Button } from '@/components/ui/Button'
+import { Card } from '@/components/ui/Card'
+import { Badge } from '@/components/ui/Badge'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -31,75 +32,70 @@ interface SidebarProps {
 interface NavItem {
   icon: React.ComponentType<{ className?: string }>
   label: string
-  href: string
+  href?: string
+  onClick?: () => void
   badge?: string
   badgeVariant?: 'default' | 'secondary' | 'destructive' | 'outline'
   adminOnly?: boolean
 }
 
-const navigation: NavItem[] = [
-  {
-    icon: Home,
-    label: 'Dashboard',
-    href: '/dashboard'
-  },
-  {
-    icon: BookOpen,
-    label: 'Quizlər',
-    href: '/quizzes'
-  },
-  {
-    icon: Plus,
-    label: 'Quiz Yarat',
-    href: '/quizzes/create'
-  },
-  {
-    icon: MessageSquare,
-    label: 'Sual-Cavab',
-    href: '/qa'
-  },
-  {
-    icon: FileText,
-    label: 'Formlar',
-    href: '/forms',
-    badge: 'Yeni',
-    badgeVariant: 'secondary'
-  },
-  {
-    icon: BarChart3,
-    label: 'Statistika',
-    href: '/stats'
-  },
-  {
-    icon: User,
-    label: 'Profil',
-    href: `/profile/${null}` // Will be updated with actual user ID
-  },
-  {
-    icon: Settings,
-    label: 'Tənzimləmələr',
-    href: '/settings'
-  },
-  {
-    icon: Shield,
-    label: 'Admin Panel',
-    href: '/admin',
-    adminOnly: true
-  }
-]
-
 export default function Sidebar({ isOpen, onClose, isMobile }: SidebarProps) {
   const { user } = useAuth()
   const location = useLocation()
+  const { checkPermissionAndNavigate } = useQuizCreatePermission()
 
-  // Update profile link with actual user ID
-  const updatedNavigation = navigation.map(item => 
-    item.href.includes('/profile/') && user?.id
-      ? { ...item, href: `/profile/${user.id}` }
-      : item
-  )
+  const navigation: NavItem[] = [
+    {
+      icon: Home,
+      label: 'Dashboard',
+      href: '/dashboard'
+    },
+    {
+      icon: BookOpen,
+      label: 'Quizlər',
+      href: '/quizzes'
+    },
+    {
+      icon: Plus,
+      label: 'Quiz Yarat',
+      onClick: checkPermissionAndNavigate
+    },
+    {
+      icon: MessageSquare,
+      label: 'Sual-Cavab',
+      href: '/qa'
+    },
+    {
+      icon: FileText,
+      label: 'Formlar',
+      href: '/forms',
+      badge: 'Yeni',
+      badgeVariant: 'secondary'
+    },
+    {
+      icon: BarChart3,
+      label: 'Statistika',
+      href: '/stats'
+    },
+    {
+      icon: User,
+      label: 'Profil',
+      href: user?.id ? `/profile/${user.id}` : '/profile'
+    },
+    {
+      icon: Settings,
+      label: 'Tənzimləmələr',
+      href: '/settings'
+    },
+    {
+      icon: Shield,
+      label: 'Admin Panel',
+      href: '/admin',
+      adminOnly: true
+    }
+  ]
 
-  const filteredNavigation = updatedNavigation.filter(item => 
+  const filteredNavigation = navigation.filter(item => 
     !item.adminOnly || user?.role === 'admin'
   )
 
@@ -128,49 +124,86 @@ export default function Sidebar({ isOpen, onClose, isMobile }: SidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2">
         {filteredNavigation.map((item, index) => {
-          const isActive = location.pathname === item.href || 
-            (item.href !== '/dashboard' && location.pathname.startsWith(item.href))
+          const isActive = item.href && (location.pathname === item.href || 
+            (item.href !== '/dashboard' && location.pathname.startsWith(item.href)))
+          
+          const handleClick = () => {
+            if (item.onClick) {
+              item.onClick()
+            }
+            if (isMobile) {
+              onClose?.()
+            }
+          }
           
           return (
             <motion.div
-              key={item.href}
+              key={item.href || item.label}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.3, delay: index * 0.05 }}
             >
-              <Link
-                to={item.href}
-                onClick={() => isMobile && onClose?.()}
-                className={cn(
-                  'flex items-center justify-between w-full p-3 rounded-xl text-ui-label transition-all duration-200 group',
-                  isActive
-                    ? 'bg-vibrant-blue text-pure-white shadow-md'
-                    : 'text-medium-grey hover:bg-soft-grey hover:text-dark-charcoal'
-                )}
-              >
-                <div className="flex items-center space-x-3">
-                  <item.icon 
-                    className={cn(
-                      'h-5 w-5 transition-colors',
-                      isActive ? 'text-pure-white' : 'text-medium-grey group-hover:text-vibrant-blue'
-                    )} 
-                  />
-                  <span>{item.label}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  {item.badge && (
-                    <Badge 
-                      variant={item.badgeVariant || 'default'} 
-                      className="text-xs px-2 py-0.5"
-                    >
-                      {item.badge}
-                    </Badge>
+              {item.href ? (
+                <Link
+                  to={item.href}
+                  onClick={() => isMobile && onClose?.()}
+                  className={cn(
+                    'flex items-center justify-between w-full p-3 rounded-xl text-ui-label transition-all duration-200 group',
+                    isActive
+                      ? 'bg-vibrant-blue text-pure-white shadow-md'
+                      : 'text-medium-grey hover:bg-soft-grey hover:text-dark-charcoal'
                   )}
-                  {!isActive && (
+                >
+                  <div className="flex items-center space-x-3">
+                    <item.icon 
+                      className={cn(
+                        'h-5 w-5 transition-colors',
+                        isActive ? 'text-pure-white' : 'text-medium-grey group-hover:text-vibrant-blue'
+                      )} 
+                    />
+                    <span>{item.label}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    {item.badge && (
+                      <Badge 
+                        variant={item.badgeVariant || 'default'} 
+                        className="text-xs px-2 py-0.5"
+                      >
+                        {item.badge}
+                      </Badge>
+                    )}
+                    {!isActive && (
+                      <ChevronRight className="h-4 w-4 text-medium-grey opacity-0 group-hover:opacity-100 transition-opacity" />
+                    )}
+                  </div>
+                </Link>
+              ) : (
+                <button
+                  onClick={handleClick}
+                  className={cn(
+                    'flex items-center justify-between w-full p-3 rounded-xl text-ui-label transition-all duration-200 group',
+                    'text-medium-grey hover:bg-soft-grey hover:text-dark-charcoal'
+                  )}
+                >
+                  <div className="flex items-center space-x-3">
+                    <item.icon 
+                      className="h-5 w-5 transition-colors text-medium-grey group-hover:text-vibrant-blue" 
+                    />
+                    <span>{item.label}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    {item.badge && (
+                      <Badge 
+                        variant={item.badgeVariant || 'default'} 
+                        className="text-xs px-2 py-0.5"
+                      >
+                        {item.badge}
+                      </Badge>
+                    )}
                     <ChevronRight className="h-4 w-4 text-medium-grey opacity-0 group-hover:opacity-100 transition-opacity" />
-                  )}
-                </div>
-              </Link>
+                  </div>
+                </button>
+              )}
             </motion.div>
           )
         })}

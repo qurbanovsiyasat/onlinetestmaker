@@ -57,22 +57,35 @@ export function useForumPosts(category?: string) {
     queryFn: async (): Promise<ForumPost[]> => {
       let query = supabase
         .from('forum_posts')
-        .select(`
-          *,
-          author:users(id, full_name, avatar_url, is_private)
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
 
       if (category && category !== 'all') {
         query = query.eq('category', category)
       }
 
-      const { data, error } = await query
+      const { data: postsData, error } = await query
       if (error) {
         console.error('Forum posts error:', error)
         return []
       }
-      return data || []
+      
+      if (!postsData || postsData.length === 0) {
+        return []
+      }
+      
+      // Manually fetch author data (following Supabase best practices)
+      const authorIds = [...new Set(postsData.map(post => post.author_id))]
+      const { data: authors } = await supabase
+        .from('users')
+        .select('id, full_name, avatar_url, is_private')
+        .in('id', authorIds)
+      
+      // Map posts with author data
+      return postsData.map(post => ({
+        ...post,
+        author: authors?.find(a => a.id === post.author_id) || null
+      })) as ForumPost[]
     },
     staleTime: 30 * 1000, // 30 seconds
   })
@@ -83,21 +96,41 @@ export function useForumPost(postId: string) {
   return useQuery({
     queryKey: ['forum-post', postId],
     queryFn: async (): Promise<ForumPost | null> => {
-      const { data, error } = await supabase
+      const { data: post, error } = await supabase
         .from('forum_posts')
-        .select(`
-          *,
-          author:users!forum_posts_author_id_fkey(id, full_name, avatar_url, is_private),
-          shared_quiz:quizzes!forum_posts_shared_quiz_id_fkey(id, title, description, difficulty)
-        `)
+        .select('*')
         .eq('id', postId)
-        .single()
+        .maybeSingle()
 
       if (error) {
-        if (error.code === 'PGRST116') return null // Not found
-        throw error
+        console.error('Forum post error:', error)
+        return null
       }
-      return data
+      if (!post) return null
+      
+      // Manually fetch author data
+      const { data: author } = await supabase
+        .from('users')
+        .select('id, full_name, avatar_url, is_private')
+        .eq('id', post.author_id)
+        .maybeSingle()
+      
+      // Manually fetch shared quiz data if exists
+      let sharedQuiz = null
+      if (post.shared_quiz_id) {
+        const { data: quiz } = await supabase
+          .from('quizzes')
+          .select('id, title, description, difficulty')
+          .eq('id', post.shared_quiz_id)
+          .maybeSingle()
+        sharedQuiz = quiz
+      }
+      
+      return {
+        ...post,
+        author,
+        shared_quiz: sharedQuiz
+      } as ForumPost
     },
     enabled: !!postId,
   })
@@ -108,17 +141,32 @@ export function useForumReplies(postId: string) {
   return useQuery({
     queryKey: ['forum-replies', postId],
     queryFn: async (): Promise<ForumReply[]> => {
-      const { data, error } = await supabase
+      const { data: repliesData, error } = await supabase
         .from('forum_replies')
-        .select(`
-          *,
-          author:users!forum_replies_author_id_fkey(id, full_name, avatar_url, is_private)
-        `)
+        .select('*')
         .eq('post_id', postId)
         .order('created_at', { ascending: true })
 
-      if (error) throw error
-      return data || []
+      if (error) {
+        console.error('Forum replies error:', error)
+        return []
+      }
+      
+      if (!repliesData || repliesData.length === 0) {
+        return []
+      }
+      
+      // Manually fetch author data
+      const authorIds = [...new Set(repliesData.map(reply => reply.author_id))]
+      const { data: authors } = await supabase
+        .from('users')
+        .select('id, full_name, avatar_url, is_private')
+        .in('id', authorIds)
+      
+      return repliesData.map(reply => ({
+        ...reply,
+        author: authors?.find(a => a.id === reply.author_id) || null
+      })) as ForumReply[]
     },
     enabled: !!postId,
   })
@@ -216,53 +264,19 @@ export function useToggleForumLike() {
     mutationFn: async ({ postId }: { postId: string }) => {
       if (!user) throw new Error('User not authenticated')
 
-      // Check if user already liked this post
-      const { data: existingLike, error: checkError } = await supabase
-        .from('forum_likes')
-        .select('id')
-        .eq('post_id', postId)
-        .eq('user_id', user.id)
-        .maybeSingle()
-
-      if (checkError) throw checkError
-
-      if (existingLike) {
-        // Remove like
-        const { error: deleteError } = await supabase
-          .from('forum_likes')
-          .delete()
-          .eq('id', existingLike.id)
-
-        if (deleteError) throw deleteError
-
-        // Decrement likes count
-        const { error: updateError } = await supabase
-          .from('forum_posts')
-          .update({ likes: supabase.sql`likes - 1` })
-          .eq('id', postId)
-
-        if (updateError) throw updateError
-      } else {
-        // Add like
-        const { error: insertError } = await supabase
-          .from('forum_likes')
-          .insert({ post_id: postId, user_id: user.id })
-
-        if (insertError) throw insertError
-
-        // Increment likes count
-        const { error: updateError } = await supabase
-          .from('forum_posts')
-          .update({ likes: supabase.sql`likes + 1` })
-          .eq('id', postId)
-
-        if (updateError) throw updateError
-      }
-
-      return !existingLike
+      const { data, error } = await supabase.rpc('toggle_like', {
+        content_type: 'forum_post',
+        content_id: postId,
+        user_id: user.id
+      })
+      
+      if (error) throw error
+      return data
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Invalidate relevant queries to update UI
       queryClient.invalidateQueries({ queryKey: ['forum-posts'] })
+      queryClient.invalidateQueries({ queryKey: ['forum-like-status'] })
     },
     onError: (error) => {
       console.error('Toggle forum like error:', error)

@@ -1,6 +1,7 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
+import { useQuizCreatePermission } from '@/hooks/useQuizCreatePermission'
 import { cn } from '@/lib/utils'
 import { motion } from 'framer-motion'
 import {
@@ -14,12 +15,14 @@ import {
 interface NavItem {
   icon: React.ComponentType<{ className?: string }>
   label: string
-  href: string
+  href?: string
+  onClick?: () => void
 }
 
 export default function BottomNavigation() {
   const { user } = useAuth()
   const location = useLocation()
+  const { checkPermissionAndNavigate } = useQuizCreatePermission()
 
   const navigation: NavItem[] = [
     {
@@ -35,7 +38,7 @@ export default function BottomNavigation() {
     {
       icon: Plus,
       label: 'Yarat',
-      href: '/quizzes/create'
+      onClick: checkPermissionAndNavigate
     },
     {
       icon: MessageSquare,
@@ -61,13 +64,18 @@ export default function BottomNavigation() {
     >
       <div className="grid grid-cols-5 gap-1 px-2 py-3 max-w-screen-sm mx-auto">
         {navigation.map((item, index) => {
-          const isActive = location.pathname === item.href || 
-            (item.href !== '/dashboard' && location.pathname.startsWith(item.href))
+          const isActive = item.href && (location.pathname === item.href || 
+            (item.href !== '/dashboard' && location.pathname.startsWith(item.href)))
+          
+          const Component = item.href ? Link : 'button'
+          const componentProps = item.href 
+            ? { to: item.href }
+            : { onClick: item.onClick }
           
           return (
-            <Link
-              key={item.href}
-              to={item.href}
+            <Component
+              key={item.href || item.label}
+              {...componentProps}
               className={cn(
                 'flex flex-col items-center justify-center px-2 py-2 rounded-xl transition-all duration-200 relative group',
                 'min-h-[60px] hover:scale-105 active:scale-95',
@@ -104,7 +112,7 @@ export default function BottomNavigation() {
                   {item.label}
                 </span>
               </motion.div>
-            </Link>
+            </Component>
           )
         })}
       </div>

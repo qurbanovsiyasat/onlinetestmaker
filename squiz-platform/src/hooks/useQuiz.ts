@@ -23,9 +23,32 @@ export function useQuizzes(filters?: { category?: string; difficulty?: string; i
         query = query.eq('is_public', filters.isPublic)
       }
 
-      const { data, error } = await query
+      const { data: quizzes, error } = await query
       if (error) throw error
-      return data as Quiz[]
+      if (!quizzes) return []
+
+      // Manually fetch question counts for each quiz
+      const quizzesWithCounts = await Promise.all(
+        quizzes.map(async (quiz) => {
+          const { data: questions } = await supabase
+            .from('questions')
+            .select('id')
+            .eq('quiz_id', quiz.id)
+          
+          const { data: results } = await supabase
+            .from('quiz_results')
+            .select('id')
+            .eq('quiz_id', quiz.id)
+
+          return {
+            ...quiz,
+            questions: questions || [],
+            quiz_results: results || []
+          }
+        })
+      )
+
+      return quizzesWithCounts as Quiz[]
     },
   })
 }

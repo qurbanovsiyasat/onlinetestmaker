@@ -64,22 +64,32 @@ export function useForms(filters?: { category?: string; isPublic?: boolean }) {
     queryFn: async () => {
       let query = supabase
         .from('forms')
-        .select(`
-          *,
-          creator:users!forms_creator_id_fkey(
-            full_name,
-            avatar_url
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
 
       if (filters?.isPublic !== undefined) {
         query = query.eq('is_public', filters.isPublic)
       }
 
-      const { data, error } = await query
+      const { data: formsData, error } = await query
       if (error) throw error
-      return data as Form[]
+      
+      if (!formsData || formsData.length === 0) {
+        return []
+      }
+      
+      // Manually fetch creator data (following Supabase best practices)
+      const creatorIds = [...new Set(formsData.map(form => form.creator_id))]
+      const { data: creators } = await supabase
+        .from('users')
+        .select('id, full_name, avatar_url, is_private')
+        .in('id', creatorIds)
+      
+      // Map forms with creator data
+      return formsData.map(form => ({
+        ...form,
+        creator: creators?.find(c => c.id === form.creator_id) || null
+      })) as Form[]
     },
   })
 }
@@ -92,18 +102,19 @@ export function useForm(formId: string) {
       // Get form
       const { data: form, error: formError } = await supabase
         .from('forms')
-        .select(`
-          *,
-          creator:users!forms_creator_id_fkey(
-            full_name,
-            avatar_url
-          )
-        `)
+        .select('*')
         .eq('id', formId)
         .maybeSingle()
 
       if (formError) throw formError
       if (!form) throw new Error('Form not found')
+
+      // Get creator data manually
+      const { data: creator } = await supabase
+        .from('users')
+        .select('id, full_name, avatar_url, is_private')
+        .eq('id', form.creator_id)
+        .maybeSingle()
 
       // Get form fields
       const { data: fields, error: fieldsError } = await supabase
@@ -115,24 +126,34 @@ export function useForm(formId: string) {
       if (fieldsError) throw fieldsError
 
       // Get form replies
-      const { data: replies, error: repliesError } = await supabase
+      const { data: repliesData, error: repliesError } = await supabase
         .from('form_replies')
-        .select(`
-          *,
-          author:users!form_replies_author_id_fkey(
-            full_name,
-            avatar_url
-          )
-        `)
+        .select('*')
         .eq('form_id', formId)
         .order('created_at', { ascending: true })
 
       if (repliesError) throw repliesError
 
+      // Get reply authors manually
+      let replies: FormReply[] = []
+      if (repliesData && repliesData.length > 0) {
+        const authorIds = [...new Set(repliesData.map(reply => reply.author_id))]
+        const { data: authors } = await supabase
+          .from('users')
+          .select('id, full_name, avatar_url, is_private')
+          .in('id', authorIds)
+        
+        replies = repliesData.map(reply => ({
+          ...reply,
+          author: authors?.find(a => a.id === reply.author_id) || null
+        })) as FormReply[]
+      }
+
       return { 
         ...form, 
+        creator,
         fields: fields as FormField[], 
-        replies: replies as FormReply[] 
+        replies 
       }
     },
     enabled: !!formId,

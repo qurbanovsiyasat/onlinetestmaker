@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Bell, Check, CheckCheck, Loader2, X } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/Button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/badge'
 import { 
   useNotifications, 
