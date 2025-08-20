@@ -1,0 +1,27 @@
+{
+  "todos": {
+    "Coordinator": {
+      "1": {
+        "id": "1",
+        "content": "Add Social Media page to menu navigation",
+        "details": "Create a new page called 'Social Media' and add it to the main navigation menu of the application.",
+        "status": "pending",
+        "priority": "high"
+      },
+      "2": {
+        "id": "2",
+        "content": "Create Social Media page content",
+        "details": "Design and implement the social media page displaying 4 social media links: TikTok, Telegram, Instagram, and YouTube with proper styling and icons.",
+        "status": "pending",
+        "priority": "high"
+      },
+      "3": {
+        "id": "3",
+        "content": "Deploy updated application",
+        "details": "Build and deploy the updated application with the new Social Media page functionality.",
+        "status": "pending",
+        "priority": "high"
+      }
+    }
+  }
+}

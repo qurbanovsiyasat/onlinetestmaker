@@ -1,0 +1,57 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Build output
+.vite
+.next
+.nuxt
+dist
+build
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Development files
+.vscode
+.idea
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Testing
+coverage
+*.lcov
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Misc
+*.tgz
+*.tar.gz
+.cache
+.temp
+.tmp
+
+# Documentation
+*.md
+!README.md
+
+# Source maps
+*.map
+
+# TypeScript
+*.tsbuildinfo
+
+# Supabase (local development)
+supabase/.temp
+supabase/seed.sql
+
+# User input files (workspace specific)
+user_input_files/
